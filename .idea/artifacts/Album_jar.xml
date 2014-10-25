@@ -1,0 +1,8 @@
+<component name="ArtifactManager">
+  <artifact type="jar" name="Album:jar">
+    <output-path>$PROJECT_DIR$/../../CS 4470/Homework 3</output-path>
+    <root id="archive" name="Album.jar">
+      <element id="module-output" name="Album" />
+    </root>
+  </artifact>
+</component>
