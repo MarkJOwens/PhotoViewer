@@ -10,8 +10,10 @@ import java.awt.event.MouseEvent;
 import java.awt.image.BufferedImage;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
-import javax.swing.JComponent;
+import javax.swing.*;
 import javax.swing.event.MouseInputAdapter;
 
 /**
@@ -31,10 +33,13 @@ public class Picture extends JComponent {
 	private BufferedImage image;
 	private boolean isFlipped;
 	private boolean inWriteMode;
+    private boolean rightClick;
+    private boolean vacationTag, drunkTag, schoolTag, familyTag;
 	private Dimension preferredSize;
 	private int pictureHeight;
 	private int pictureWidth;
     private Thumbnail thumbnail;
+    private AlbumController albumController;
 
     public Thumbnail getThumbnail() {
         return thumbnail;
@@ -42,22 +47,68 @@ public class Picture extends JComponent {
 
     //List contains all points to draw
 	private List<Line> lineList = new ArrayList<Line>();
+    private List<Line> gestureList;
 	//List of all Strings to draw
 	private List<PhotoString> stringList = new ArrayList<PhotoString>();
-	
-	
-	public Picture(BufferedImage image) {
-        System.out.println("made it to Picture");
-		this.image = image;
-		preferredSize = new Dimension(image.getWidth(),
-				image.getHeight());
-		setPreferredSize(preferredSize);
+    /**
+     * The following strings are used for the REGEX gesture
+     * recognition.
+     */
+    private final String NORTH = "N";
+    private final String NORTH_EAST = "A";
+    private final String EAST = "E";
+    private final String SOUTH_EAST = "B";
+    private final String SOUTH = "S";
+    private final String SOUTH_WEST = "C";
+    private final String WEST = "W";
+    private final String NORTH_WEST = "D";
 
+    private final String NORTHS = "[AND]+";
+    private final String NORTH_WESTS = "[NDW]+";
+    private final String NORTH_EASTS = "[NAE]+";
+    private final String EASTS = "[AEB]+";
+    private final String SOUTHS = "[BSC]+";
+    private final String SOUTH_WESTS = "[SCW]+";
+    private final String SOUTH_EASTS = "[SEB]+";
+    private final String WESTS = "[DWC]+";
+
+    private final String START = "^.{0,2}+";
+    private final String END = ".{0,2}+$";
+    private final String NOISE = ".{0,4}+";
+
+    //advance to next photo
+    private final Pattern RIGHT_ANGLE = Pattern.compile(START + SOUTH_EASTS + NOISE + SOUTH_WESTS + END);
+    //go to previous photo
+    private final Pattern LEFT_ANGLE = Pattern.compile(START + SOUTH_WESTS + NOISE + SOUTH_EASTS + END);
+    //delete photo
+    private final Pattern PIG_TAIL = Pattern.compile(START + EASTS + SOUTHS + WESTS + NORTHS + EASTS + SOUTHS + END);
+    //drunk tag
+    private final Pattern QUESTION_MARK = Pattern.compile(START + NORTHS + EASTS + SOUTHS + WESTS + SOUTHS + END);
+    //vacation tag
+    private final Pattern STAR = Pattern.compile(START + NORTH_EASTS + SOUTH_EASTS + NORTH_WESTS + EASTS + SOUTH_WESTS + END);
+    //school tag
+    private final Pattern UP_ANGLE = Pattern.compile(START + NORTH_EASTS + SOUTH_EASTS + END);
+    //family tag
+    private final Pattern DOWN_ANGLE = Pattern.compile(START + SOUTH_EASTS + NORTH_EASTS + END);
+
+	
+	public Picture(BufferedImage image, AlbumController albumController) {
+        //System.out.println("made it to Picture");
+		this.image = image;
+        this.albumController = albumController;
+
+		preferredSize = new Dimension(image.getWidth(), image.getHeight());
+		setPreferredSize(preferredSize);
 		
 		pictureHeight = (int)preferredSize.getHeight();
 		pictureWidth = (int)preferredSize.getWidth();
 		isFlipped = false;
-		
+        rightClick = false;
+        drunkTag = false;
+        schoolTag = false;
+        familyTag = false;
+        vacationTag = false;
+
 		MouseInputAdapter mouseAdapt= new PictureMouseListener();
 		addMouseListener(mouseAdapt);
 		addMouseMotionListener(mouseAdapt);
@@ -73,23 +124,24 @@ public class Picture extends JComponent {
 	@Override
 	protected void paintComponent(Graphics g){
 		super.paintComponent(g);
+        Graphics2D g2d = (Graphics2D) g;
 		//System.out.println("paintComponent of Picture called!");
 		if(! isFlipped){
-			g.drawImage(image, 0, 0, null);
+			g2d.drawImage(image, 0, 0, null);
+
 		} else {
 			
-			Graphics2D g2d = (Graphics2D) g;
+
 			//draw the back of the picture
 			g2d.setColor(Color.WHITE);
 			g2d.fillRect(0, 0, pictureWidth, pictureHeight);
-			
-			drawLines(g2d);
-			
+
 			g2d.setColor(Color.BLACK);
 			for (PhotoString ps : stringList){
 				drawString(g2d, ps.getTypedString(), ps.getStringStartX(), ps.getStringStartY());
 			}
 		}
+        drawLines(g2d);
 	}
 	
 	/**
@@ -109,10 +161,18 @@ public class Picture extends JComponent {
 			BasicStroke basStr = new BasicStroke(3, BasicStroke.CAP_ROUND,BasicStroke.JOIN_ROUND);
 			g2d.setStroke(basStr);
 			
-			
-			for (Line l : lineList){
-				g2d.drawLine(l.getStartX(), l.getStartY(), l.getEndX(), l.getEndY());
-			}
+			if(isFlipped) {
+                for (Line l : lineList) {
+                    g2d.drawLine(l.getStartX(), l.getStartY(), l.getEndX(), l.getEndY());
+                }
+            }
+
+            if(rightClick){
+                g2d.setColor(Color.RED);
+                for (Line l : gestureList){
+                    g2d.drawLine(l.getStartX(), l.getStartY(), l.getEndX(), l.getEndY());
+                }
+            }
 	}
 	/**
 	 * This method draws a String on the picture and will wrap the text
@@ -149,6 +209,84 @@ public class Picture extends JComponent {
 		if (isFlipped) isFlipped = false;
 		else isFlipped = true;
 	}
+
+
+
+    private void processGesture(){
+        String gestures = buildGestureString();
+        if (gestures == null) return;
+        System.out.println(gestures);
+        //Matcher m = rightAngle.matcher(gestures);
+        if (RIGHT_ANGLE.matcher(gestures).find()){
+            System.out.println("right angle detected");
+            if (!isFlipped) albumController.nextPhoto();
+        } else if (LEFT_ANGLE.matcher(gestures).find()){
+            System.out.println("left angle detected");
+            if (!isFlipped) albumController.previousPhoto();
+        } else if (PIG_TAIL.matcher(gestures).find()){
+            System.out.println("pigtail detected");
+            if (!isFlipped) albumController.deletePhoto();
+        } else if (QUESTION_MARK.matcher(gestures).find()){
+            System.out.println("question mark detected");
+           if(!isFlipped) albumController.toggleTag(Tag.DRUNK);
+
+        } else if (STAR.matcher(gestures).find()){
+            System.out.println("star detected");
+           if(!isFlipped) albumController.toggleTag(Tag.VACATION);
+        } else if (UP_ANGLE.matcher(gestures).find()){
+            System.out.println("up angle detected");
+            if (!isFlipped) albumController.toggleTag(Tag.SCHOOL);
+        } else if (DOWN_ANGLE.matcher(gestures).find()){
+            System.out.println("down angle detected");
+            if(!isFlipped) albumController.toggleTag(Tag.FAMILY);
+        }
+
+    }
+
+    /*
+    This method translates the drawn gesture into letters that can
+    be used by the REGEX pattern matcher to recognize shapes
+     */
+    private String buildGestureString(){
+        StringBuilder str = new StringBuilder();
+        for (Line l : gestureList){
+            if(l.getStartX() < l.getEndX()){ //moving East
+                if (l.getStartY() < l.getEndY()){
+                    str.append(SOUTH_EAST);
+                } else if (l.getStartY() > l.getEndY()){
+                    str.append(NORTH_EAST);
+                } else if (l.getStartY() == l.getEndY()){
+                    str.append(EAST);
+                }
+            } else if (l.getStartX() > l.getEndX()){//moving West
+                if (l.getStartY() < l.getEndY()){
+                    str.append(SOUTH_WEST);
+                }else if (l.getStartY() > l.getEndY()){
+                    str.append(NORTH_WEST);
+                } else {
+                    str.append(WEST);
+                }
+            } else if (l.getStartX()==l.getEndX())
+                if (l.getStartY() > l.getEndY()) {//moving North
+                    str.append(NORTH);
+                } else if (l.getStartY() < l.getEndY()){//moving South
+                    str.append(SOUTH);
+                }
+        }
+        return str.toString();
+    }
+
+    public void setTag(Tag tag, boolean isSelected){
+        if (tag == Tag.DRUNK){
+            drunkTag = isSelected;
+        } else if (tag == Tag.FAMILY){
+            familyTag = isSelected;
+        } else if (tag == Tag.SCHOOL){
+            schoolTag = isSelected;
+        } else if (tag == Tag.VACATION){
+            vacationTag = isSelected;
+        }
+    }
 
     public BufferedImage getImage() {
         return image;
@@ -192,7 +330,38 @@ public class Picture extends JComponent {
 		}
 		
 	}
-	
+
+    public boolean isVacationTag() {
+        return vacationTag;
+    }
+
+    public void setVacationTag(boolean vacationTag) {
+        this.vacationTag = vacationTag;
+    }
+
+    public boolean isDrunkTag() {
+        return drunkTag;
+    }
+
+    public void setDrunkTag(boolean drunkTag) {
+        this.drunkTag = drunkTag;
+    }
+
+    public boolean isSchoolTag() {
+        return schoolTag;
+    }
+
+    public void setSchoolTag(boolean schoolTag) {
+        this.schoolTag = schoolTag;
+    }
+
+    public boolean isFamilyTag() {
+        return familyTag;
+    }
+
+    public void setFamilyTag(boolean familyTag) {
+        this.familyTag = familyTag;
+    }
 	private class PictureMouseListener extends MouseInputAdapter{
 		private int prevX;
 		private int prevY;
@@ -213,15 +382,33 @@ public class Picture extends JComponent {
 		
 		@Override
 		public void mousePressed(MouseEvent e) {
-			if (isFlipped){
-				wasDragged = false;
-				inWriteMode = false;
-			}
+
+            wasDragged = false;
+            inWriteMode = false;
+
+            if (SwingUtilities.isRightMouseButton(e)){
+                rightClick = true;
+                gestureList = new ArrayList<Line>();
+               // System.out.println("right click detected");
+            }
 		}	
 		
 		@Override
 		public void mouseDragged(MouseEvent e){
-			if (isFlipped){
+            if (rightClick){
+               	/*
+				 * If this is the first point in the mouse dragging event, set the
+				 * mouse dragged event flag and initialize the x and y fields, and create
+				 * the first new line as a single point (there is no other point to connect to yet)
+				 */
+                if (!wasDragged){
+                    wasDragged = true;
+                    gestureList.add(new Line(e.getX(),e.getY(),e.getX(),e.getY()));
+                } else {
+                    gestureList.add(new Line(prevX, prevY, e.getX(), e.getY()));
+                }
+            } else if (isFlipped){
+
 				/*
 				 * If this is the first point in the mouse dragging event, set the 
 				 * mouse dragged event flag and initialize the x and y fields, and create
@@ -233,22 +420,27 @@ public class Picture extends JComponent {
 				} else {
 					lineList.add(new Line(prevX, prevY, e.getX(), e.getY()));
 				}
-				
-				prevX = e.getX();
-				prevY = e.getY();
-				revalidate();
-				repaint();
+
 			}
+            prevX = e.getX();
+            prevY = e.getY();
+            revalidate();
+            repaint();
 			
 		}
 
 		@Override
 		public void mouseReleased(MouseEvent e) {
+            if(rightClick){
+                processGesture();
+                gestureList = null;
+                rightClick = false;
+            }
 			/*
 			 * if the mouse was released without dragging on the flipped side,
 			 * the user can type in text to display on the back.
 			 */
-			if ( !wasDragged && isFlipped){
+			else if ( !wasDragged && isFlipped){
 				inWriteMode = true;
 				stringList.add(new PhotoString(e.getX(), e.getY()));
 				requestFocusInWindow();

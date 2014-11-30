@@ -9,7 +9,7 @@ public class LightPanel extends JPanel {
     LightPage lightPage;
 
 
-    public LightPanel(HomePage homePage){
+    public LightPanel(AlbumController albumController){
 
 
         //setLayout(new GridLayout(0,1));
@@ -20,7 +20,7 @@ public class LightPanel extends JPanel {
 
 
 
-        lightPage = new LightPage(getPreferredSize(), homePage);
+        lightPage = new LightPage(getPreferredSize(), albumController);
         setBackground(Color.green);
 
         add(lightPage, BorderLayout.CENTER);

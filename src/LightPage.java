@@ -15,12 +15,12 @@ public class LightPage extends JComponent {
     private Mode currentMode;
     private PhotoViewPanel photoViewPanel;
     private JScrollPane topScroll, bottomScroll;
-    private Dimension preferredSize;
+    //private Dimension preferredSize;
     private ThumbPanel thumbPanel;
-    private HomePage homePage;
+    private AlbumController albumController;
 
-    public LightPage(Dimension preferredSize, HomePage homePage) {
-        this.homePage = homePage;
+    public LightPage(Dimension preferredSize, AlbumController albumController) {
+        this.albumController = albumController;
         setPreferredSize(preferredSize);
         setLayout(new BorderLayout());
         pictureList = new LinkedList<Picture>();
@@ -38,22 +38,28 @@ public class LightPage extends JComponent {
 
     }
 
+    public Picture getCurrentPicture() {
+        return currentPicture;
+    }
+
     public void setCurrentPicture(Picture newPhoto) {
         this.currentPicture = newPhoto;
         if (currentMode == Mode.PHOTO_VIEWER
                 || currentMode == Mode.SPLIT_MODE) {
             photoViewPanel.setPhoto(currentPicture);
+            albumController.setTagBoxes(newPhoto);
+
             revalidate();
             repaint();
         }
     }
 
     public void importPhoto(BufferedImage bufImg) {
-        Picture newPhoto = new Picture(bufImg);
+        Picture newPhoto = new Picture(bufImg, albumController);
         pictureList.add(0, newPhoto);
         setCurrentPicture(newPhoto);
         changeMode(Mode.PHOTO_VIEWER);
-        homePage.disableAllowed(true);
+        albumController.disableAllowed(true);
     }
 
     /**
@@ -72,7 +78,7 @@ public class LightPage extends JComponent {
        // System.out.println("PictureList size is " + pictureList.size());
         if (pictureList.isEmpty()) {
             currentPicture = null;
-            homePage.disableAllowed(false);
+            albumController.disableAllowed(false);
             changeMode(Mode.PHOTO_VIEWER);
         } else if (pictureList.size() >= pictureIndex + 1) {
             currentPicture = pictureList.get(pictureIndex);
@@ -96,7 +102,7 @@ public class LightPage extends JComponent {
 
         //if (newMode == currentMode) return;
         destroyMode();
-        homePage.updateView(newMode);
+        albumController.updateView(newMode);
         this.currentMode = newMode;
 
         if (currentMode == Mode.PHOTO_VIEWER) {
@@ -173,6 +179,7 @@ public class LightPage extends JComponent {
         index++;
         currentPicture = pictureList.get(index);
         changeMode(currentMode);
+        albumController.setTagBoxes(currentPicture);
     }
 
     /**
@@ -187,6 +194,7 @@ public class LightPage extends JComponent {
         index--;
         currentPicture = pictureList.get(index);
         changeMode(currentMode);
+        albumController.setTagBoxes(currentPicture);
 
     }
     @Override

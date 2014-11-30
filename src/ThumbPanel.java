@@ -35,7 +35,6 @@ public class ThumbPanel extends JPanel {
         } else if (currentMode == Mode.SPLIT_MODE){
             BoxLayout box = new BoxLayout(this, BoxLayout.X_AXIS);
             setLayout(box);
-
         }
    //     setLayout(new GridLayout(pictureList.size()/2, pictureList.size() - pictureList.size()/2));
         addThumbs();
