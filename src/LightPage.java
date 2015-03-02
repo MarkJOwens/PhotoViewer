@@ -133,6 +133,7 @@ public class LightPage extends JComponent {
             add(topScroll, BorderLayout.CENTER);
 
             thumbPanel = new ThumbPanel(currentPicture, pictureList, this, currentMode);
+            albumController.setThumbPanel(thumbPanel);
             bottomScroll = new JScrollPane(thumbPanel);
 
             add(bottomScroll,BorderLayout.SOUTH);
@@ -140,9 +141,11 @@ public class LightPage extends JComponent {
             revalidate();
             repaint();
 
-        } else if (currentMode == Mode.BROWSER) {
+        } else if (currentMode == Mode.BROWSER
+                || currentMode == Mode.MAGNET) {
             setLayout(new BorderLayout());
             thumbPanel = new ThumbPanel(currentPicture, pictureList, this, currentMode);
+            albumController.setThumbPanel(thumbPanel);
             topScroll = new JScrollPane(thumbPanel);
             add(topScroll,BorderLayout.CENTER);
             System.out.println("just added topScroll");
@@ -161,7 +164,8 @@ public class LightPage extends JComponent {
             thumbPanel.removeThumbs();
             remove(topScroll);
             remove(bottomScroll);
-        } else if (currentMode == Mode.BROWSER){
+        } else if (currentMode == Mode.BROWSER
+                || currentMode == Mode.MAGNET){
             thumbPanel.removeThumbs();
             remove(topScroll);
         }

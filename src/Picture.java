@@ -362,6 +362,20 @@ public class Picture extends JComponent {
     public void setFamilyTag(boolean familyTag) {
         this.familyTag = familyTag;
     }
+
+    public boolean isTagged(Tag tag){
+        if (tag == Tag.DRUNK){
+            return isDrunkTag();
+        } else if (tag == Tag.FAMILY){
+            return isFamilyTag();
+        } else if (tag == Tag.SCHOOL){
+            return isSchoolTag();
+        } else if (tag == Tag.VACATION){
+            return isVacationTag();
+        }
+
+        return false;
+    }
 	private class PictureMouseListener extends MouseInputAdapter{
 		private int prevX;
 		private int prevY;

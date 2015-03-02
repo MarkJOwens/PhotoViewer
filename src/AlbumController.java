@@ -14,10 +14,21 @@ public class AlbumController {
     private ControlPanel controlPanel;
     private LightPage lightPage;
     private StatusPanel statusPanel;
+    private ThumbPanel thumbPanel;
 
 
     public void setStatus (String status){
         statusPanel.setStatus(status);
+    }
+
+    public void setThumbPanel(ThumbPanel thumbPanel){this.thumbPanel = thumbPanel;}
+
+    public void addMagnet(Tag tag){
+        thumbPanel.addMagnet(tag);
+    }
+
+    public void removeMagnet(Tag tag){
+        thumbPanel.removeMagnet(tag);
     }
 
     public void setPhotoTag(Tag tag, Boolean isSelected){
@@ -35,6 +46,7 @@ public class AlbumController {
     public void toggleTag(Tag tag){
         controlPanel.toggleTag(tag);
     }
+
     public void changeMode(Mode newMode){
         lightPage.changeMode(newMode);
     }
@@ -46,6 +58,7 @@ public class AlbumController {
     public void disableAllowed(boolean disable){
         homePage.disableAllowed(disable);
     }
+
     public void setStatusPanel(StatusPanel statusPanel) {
         this.statusPanel = statusPanel;
     }
